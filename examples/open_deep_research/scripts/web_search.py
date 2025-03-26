@@ -266,6 +266,8 @@ if __name__ == "__main__":
     #     # time.sleep(sleep_time)
 
     query = "link to Scikit-Learn July 2017 changelog"
+    # ['https://scikit-learn.org/', 'https://stackoverflow.com/questions/33679938/how-to-upgrade-scikit-learn-package-in-anaconda', 'https://scikit-learn.org/0.19/whats_new.html']
+
     result = search_web_tool.forward(query)
     print(f"**** Search WEB RESULT: {result}")
 
