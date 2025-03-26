@@ -13,6 +13,7 @@ from scripts.text_web_browser import (
     PageUpTool,
     SimpleTextBrowser,
     VisitTool,
+    DownloadTool
 )
 from scripts.visual_qa import visualizer
 
@@ -103,6 +104,7 @@ def create_agent(model_id="o1"):
             "max_completion_tokens": 8192,
             "api_base":"https://api.deepseek.com",
             "api_key": os.getenv("DEEPSEEK_API_KEY"),
+            "flatten_messages_as_text": True,
         }
         model = OpenAIServerModel(**model_params)
     else:
@@ -119,7 +121,8 @@ def create_agent(model_id="o1"):
         FindNextTool(browser),
         ArchiveSearchTool(browser),
         TextInspectorTool(model, text_limit),
-        # visualizer,
+        DownloadTool(browser),
+        visualizer,
     ]
     text_webbrowser_agent = ToolCallingAgent(
         model=model,

@@ -184,3 +184,46 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
         output = f"You did not provide a particular question, so here is a detailed caption for the image: {output}"
 
     return output
+
+@tool
+def visualizer_opensource(image_path: str, question: Optional[str] = None) -> str:
+    """A tool that can answer questions about attached images.
+
+    Args:
+        image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
+        question: The question to answer.
+    """
+
+    add_note = False
+    if not question:
+        add_note = True
+        question = "Please write a detailed caption for this image."
+    if not isinstance(image_path, str):
+        raise Exception("You should provide at least `image_path` string argument to this tool!")
+
+    mime_type, _ = mimetypes.guess_type(image_path)
+    base64_image = encode_image(image_path)
+
+    payload = {
+        "model": "gpt-4o",
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": question},
+                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}},
+                ],
+            }
+        ],
+        "max_tokens": 1000,
+    }
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    try:
+        output = response.json()["choices"][0]["message"]["content"]
+    except Exception:
+        raise Exception(f"Response format unexpected: {response.json()}")
+
+    if add_note:
+        output = f"You did not provide a particular question, so here is a detailed caption for the image: {output}"
+
+    return output

@@ -279,12 +279,14 @@ class Model:
         3. Default values in self.kwargs
         """
         # Clean and standardize the message list
+        # print("***messages before:\n", messages)
         messages = get_clean_message_list(
             messages,
             role_conversions=custom_role_conversions or tool_role_conversions,
             convert_images_to_image_urls=convert_images_to_image_urls,
             flatten_messages_as_text=self.flatten_messages_as_text,
         )
+        # print("***messages after:\n", messages)
 
         # Use self.kwargs as the base configuration
         completion_kwargs = {
@@ -1055,7 +1057,6 @@ class OpenAIServerModel(ApiModel):
 
         return openai.OpenAI(**self.client_kwargs)
 
-
     def _prepare_completion_kwargs(
         self,
         messages: List[Dict[str, str]],
@@ -1073,34 +1074,19 @@ class OpenAIServerModel(ApiModel):
         1. Explicitly passed kwargs
         2. Specific parameters (stop_sequences, grammar, etc.)
         3. Default values in self.kwargs
+
+        Difference from base method: does not add tools in kwargs. 
+        Model output tool calls in text output and will be parsed.
         """
         # Clean and standardize the message list
+        # print("***messages before:\n", messages)
         messages = get_clean_message_list(
             messages,
             role_conversions=custom_role_conversions or tool_role_conversions,
             convert_images_to_image_urls=convert_images_to_image_urls,
             flatten_messages_as_text=self.flatten_messages_as_text,
         )
-
-#         # Handle tools parameter
-#         tool_prompt = """ You have access to the following tools:
-#         {tools_description}
-# """
-#         def assemble_tools_description(tools):
-#             tool_prompt = ""
-#             for tool in tools:
-#                 tool_prompt += f"{tool.name}: {tool.description}, args: {tool.inputs}\n"
-#             return tool_prompt
-        
-#         if tools_to_call_from:
-#             tool_description = assemble_tools_description(tools_to_call_from)
-#             print(f"*** tool_description: {tool_description}")
-#             user_msg_for_tools = {
-#                 "role": MessageRole.USER,
-#                 "content": tool_prompt.format(tools_description=tool_description),
-#             }
-#             print(f"*** user_msg_for_tools: {user_msg_for_tools}")
-#             messages.append(user_msg_for_tools)
+        # print("***messages after:\n", messages)
 
         # Use self.kwargs as the base configuration
         completion_kwargs = {
@@ -1113,8 +1099,6 @@ class OpenAIServerModel(ApiModel):
             completion_kwargs["stop"] = stop_sequences
         if grammar is not None:
             completion_kwargs["grammar"] = grammar
-
-        
 
         # Finally, use the passed-in kwargs to override all settings
         completion_kwargs.update(kwargs)
@@ -1146,7 +1130,7 @@ class OpenAIServerModel(ApiModel):
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
         dump = response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})
-        print(f"*** Model dump message: {dump}")
+        # print(f"*** Model dump message: {dump}")
 
         first_message = ChatMessage.from_dict(
             response.choices[0].message.model_dump(include={"role", "content", "tool_calls"})

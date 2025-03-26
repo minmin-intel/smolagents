@@ -139,6 +139,8 @@ def make_json_serializable(obj: Any) -> Any:
 def parse_json_blob(json_blob: str) -> Tuple[Dict[str, str], str]:
     "Extracts the JSON blob from the input and returns the JSON data and the rest of the input."
     try:
+        if "\"" not in json_blob:
+            json_blob = json_blob.replace("'", '"')
         first_accolade_index = json_blob.find("{")
         last_accolade_index = [a.start() for a in list(re.finditer("}", json_blob))][-1]
         json_data = json_blob[first_accolade_index : last_accolade_index + 1]

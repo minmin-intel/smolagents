@@ -1013,7 +1013,7 @@ class ToolCallingAgent(MultiStepAgent):
             model_message: ChatMessage = self.model(
                 memory_messages,
                 tools_to_call_from=list(self.tools.values()),
-                stop_sequences=["Observation:", "Calling tools:"],
+                # stop_sequences=["Observation:", "Calling tools:"],
             )
             memory_step.model_output_message = model_message
         except Exception as e:
