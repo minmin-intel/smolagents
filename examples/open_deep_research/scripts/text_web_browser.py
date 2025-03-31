@@ -410,7 +410,7 @@ class VisitTool(Tool):
 class DownloadTool(Tool):
     name = "download_file"
     description = """
-Download a file at a given URL. The file will be saved in the downloads folder.
+Download a file or an image at a given URL. The file will be saved in the downloads folder.
 After using this tool, for further inspection of the downloaded file, you should use visualizer or inspect_file_as_text tool.
 DO NOT use this tool for .pdf or .txt or .htm files: for these types of files use visit_page with the file url instead."""
     inputs = {"url": {"type": "string", "description": "The relative or absolute url of the file to be downloaded."}}
