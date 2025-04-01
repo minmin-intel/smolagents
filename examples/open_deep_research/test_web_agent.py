@@ -344,7 +344,7 @@ if __name__ == "__main__":
 
         for i, example in tasks_to_run.iterrows():
             if args.debug:
-                if i == 14:
+                if i == args.question:
                     print(f"Processing task {i}/{len(tasks_to_run)}")
                     print(f"Question: {example['question']}")
                     answer_single_question(args, example, answers_file)
