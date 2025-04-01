@@ -38,3 +38,6 @@ python-pptx
 torch
 xlrd
 SpeechRecognition
+## added
+docling
+crawl4ai

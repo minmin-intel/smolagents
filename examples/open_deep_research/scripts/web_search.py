@@ -192,11 +192,6 @@ class CrawlWebTool(Tool):
     output_type = "string"
     def __init__(self):
         super().__init__()
-        # self.ddg = DuckDuckGoSearchEngine()
-        # if search_engine == "google":
-        #     self.search_engine = GoogleSearchEngine()
-        # else:
-        #     self.search_engine = DuckDuckGoSearchEngine()
         self.crawler = WebCrawler()
         self.llm = LLMExtractor(model_name="meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo")
     
@@ -211,14 +206,14 @@ class CrawlWebTool(Tool):
             reformat_query = query
 
         try:
-            search_engine = DuckDuckGoSearchEngine()
-            results = asyncio.run(search_engine.perform_search(reformat_query))
-        except:
             search_engine = GoogleSearchEngine()
+            results = asyncio.run(search_engine.perform_search(reformat_query))
+        except:            
+            search_engine = DuckDuckGoSearchEngine()
             results = asyncio.run(search_engine.perform_search(reformat_query))
         if results is None:
             print(f"Search failed for query: {query}")
-            return "Search failed. No results found."
+            return "Search failed due to search engine error."
         
         print(f"Found {len(results)} results.")
 

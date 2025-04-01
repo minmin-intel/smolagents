@@ -73,9 +73,14 @@ def parse_args():
     parser.add_argument("--provider", type=str, default="openai")
     parser.add_argument("--agent_type", type=str, default="code", help="code or toolcalling")
     parser.add_argument("--max_steps", type=int, default=20)
+    # data related
     parser.add_argument("--datapath", type=str, default="data/gaia")
     parser.add_argument("--test_type", type=str, default="text", help="text or image")
     parser.add_argument("--answer_file", type=str, default="answers.jsonl")
+    parser.add_argument("--subset", type=str, default="validation")
+    parser.add_argument("--sampled", action="store_true", help="If set, will use the sampled dataset.")
+    # test mode
+    parser.add_argument("--quick_test", action="store_true", help="If set, will run the agent in test mode.")
     parser.add_argument(
         "--debug", action="store_true", help="If set, will run the agent in debug mode (no concurrency)."
     )
@@ -169,14 +174,19 @@ def create_agent(args):
 
 def load_gaia_dataset(args):
     DATAPATH=args.datapath
-    SET = "validation"
-    df = pd.read_json(f"{DATAPATH}/{SET}/metadata_filtered_{args.test_type}_sampled.jsonl", lines=True)
+
+    if args.sampled:
+        filename = f"{DATAPATH}/{args.subset}/metadata_filtered_{args.test_type}_sampled.jsonl"
+    else:
+        filename = f"{DATAPATH}/{args.subset}/metadata.jsonl"
+
+    df = pd.read_json(filename, lines=True)
     print(f"Loaded dataset: {df.shape[0]} questions")
     print(df["Level"].value_counts())
     df.rename(columns={"Question": "question", "Final answer": "true_answer", "Level": "task"}, inplace=True)
     for _, row in df.iterrows():
         if len(row["file_name"]) > 0:
-            row["file_name"] = f"{DATAPATH}/{SET}/" + row["file_name"]
+            row["file_name"] = f"{DATAPATH}/{args.subset}/" + row["file_name"]
             #check if file exists
             if not os.path.exists(row["file_name"]):
                 print(f"File {row['file_name']} does not exist!")
@@ -299,7 +309,7 @@ def get_examples_to_answer(answers_file, df) -> List[dict]:
 def test_web_agent():
     args = parse_args()
 
-    agent = create_agent()
+    agent = create_agent(args)
 
     if args.question == 0:
         question = "Weather in San Francisco March 1, 2025"
@@ -320,29 +330,38 @@ if __name__ == "__main__":
     args= parse_args()
     print(args)
 
-    df = load_gaia_dataset(args)
-    answers_file = args.answer_file
+    if args.quick_test:
+        test_web_agent()
 
-    if args.debug:
-        tasks_to_run = df
     else:
-        tasks_to_run = get_examples_to_answer(answers_file, df)
+        df = load_gaia_dataset(args)
+        answers_file = args.answer_file
 
-    for i, example in tasks_to_run.iterrows():
-        if i == 9:
-            print(f"Processing task {i}/{len(tasks_to_run)}")
-            print(f"Question: {example['question']}")
-            answer_single_question(args, example, answers_file)
+        if args.debug:
+            tasks_to_run = df
+        else:
+            tasks_to_run = get_examples_to_answer(answers_file, df)
+
+        for i, example in tasks_to_run.iterrows():
+            if args.debug:
+                if i == 14:
+                    print(f"Processing task {i}/{len(tasks_to_run)}")
+                    print(f"Question: {example['question']}")
+                    answer_single_question(args, example, answers_file)
+            else:
+                print(f"Processing task {i}/{len(tasks_to_run)}")
+                print(f"Question: {example['question']}")
+                answer_single_question(args, example, answers_file)
 
 
-    save_as_csv(answers_file)
-    print("All tasks done!")
+        save_as_csv(answers_file)
+        print("All tasks done!")
 
-    # with ThreadPoolExecutor(max_workers=args.concurrency) as exe:
-    #     futures = [
-    #         exe.submit(answer_single_question, args, example, answers_file)
-    #         for example in tasks_to_run
-    #     ]
-    #     for f in tqdm(as_completed(futures), total=len(tasks_to_run), desc="Processing tasks"):
-    #         f.result()
+        # with ThreadPoolExecutor(max_workers=args.concurrency) as exe:
+        #     futures = [
+        #         exe.submit(answer_single_question, args, example, answers_file)
+        #         for example in tasks_to_run
+        #     ]
+        #     for f in tqdm(as_completed(futures), total=len(tasks_to_run), desc="Processing tasks"):
+        #         f.result()
 

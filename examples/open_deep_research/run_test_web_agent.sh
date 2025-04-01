@@ -9,11 +9,12 @@ MODEL="deepseek-chat"
 
 max_steps=15
 QUESTION=2
-logfile=$WORKDIR/datasets/test_web_search/smolagents_q${QUESTION}_${PROVIDER}_${agent_type}.log
+logfile=$WORKDIR/datasets/test_web_search/smolagents_q${QUESTION}_${PROVIDER}_${agent_type}_crawler.log
 
 python test_web_agent.py \
 --provider $PROVIDER \
 --model-id $MODEL \
 --question $QUESTION \
 --max_steps $max_steps \
---agent_type $agent_type | tee $logfile
+--agent_type $agent_type \
+--quick_test | tee $logfile

@@ -3,8 +3,12 @@ from typing import Optional
 from smolagents import Tool
 from smolagents.models import MessageRole, Model
 
-from .mdconvert import MarkdownConverter
+try:
+    from .mdconvert import MarkdownConverter
+except:
+    from mdconvert import MarkdownConverter
 import os
+from docling.document_converter import DocumentConverter
 
 class TextInspectorTool(Tool):
     name = "inspect_file_as_text"
@@ -25,7 +29,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
     }
     output_type = "string"
     md_converter = MarkdownConverter()
-    docling_converter = None  # Placeholder for docling converter
+    docling_converter = DocumentConverter()
 
     def __init__(self, model: Model, text_limit: int):
         super().__init__()
@@ -80,20 +84,19 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
         if not os.path.exists(file_path):
             raise Exception(f"File {file_path} does not exist!")
         
-        if ".zip" in file_path:
-            result = self.md_converter.convert(file_path)
-        else:
-            # use docling to convert the file
-
-
         if file_path[-4:] in [".png", ".jpg"]:
             raise Exception("Cannot use inspect_file_as_text tool with images: use visualizer instead!")
-
-        if ".zip" in file_path:
-            return result.text_content
+        
+        if not any(file_path.endswith(ext) for ext in [".pdf", ".docx", ".xlsx", ".pptx", ".md", ".txt", ".html", ".csv"]):
+            result = self.md_converter.convert(file_path)
+            doc = result.text_content
+        else:
+            # use docling to convert the file
+            result = self.docling_converter.convert(file_path)
+            doc = result.document.export_to_markdown()
 
         if not question:
-            return result.text_content
+            return doc
 
         messages = [
             {
@@ -112,9 +115,9 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
                     {
                         "type": "text",
                         "text": "Here is the complete file:\n### "
-                        + str(result.title)
+                        + str(doc)
                         + "\n\n"
-                        + result.text_content[: self.text_limit],
+                        + doc[: self.text_limit],
                     }
                 ],
             },
@@ -130,3 +133,12 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
             },
         ]
         return self.model(messages).content
+    
+if __name__ == "__main__":
+    tool = TextInspectorTool(model=Model(), text_limit=2000)
+    file_path = "e9a2c537-8232-4c3f-85b0-b52de6bcba99.pdf"  
+    # file_path = "7bd855d8-463d-4ed5-93ca-5fe35145f733.xlsx"
+    file_path = "bec74516-02fc-48dc-b202-55e78d0e17cf.jsonld"
+    
+    result = tool.forward(file_path)
+    print(result)

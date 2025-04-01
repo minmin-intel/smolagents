@@ -94,8 +94,8 @@ def encode_image(image_path):
         return base64.b64encode(image_file.read()).decode("utf-8")
 
 
-headers = {"Content-Type": "application/json", "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"}
-
+# headers = {"Content-Type": "application/json", "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}"}
+headers = {"Content-Type": "application/json", "Authorization": f"Bearer {os.getenv('TOGETHER_API_KEY')}"}
 
 def resize_image(image_path):
     img = PIL.Image.open(image_path)
@@ -150,7 +150,11 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
         image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
         question: The question to answer.
     """
-
+    DATAPATH=os.getenv("DATAPATH", "")
+    image_path = os.path.join(DATAPATH, image_path)
+    if not os.path.exists(image_path):
+        raise Exception(f"File {image_path} does not exist!")
+    
     add_note = False
     if not question:
         add_note = True
@@ -161,8 +165,25 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
     mime_type, _ = mimetypes.guess_type(image_path)
     base64_image = encode_image(image_path)
 
+    ## HF original code using gpt-4o
+    # payload = {
+    #     "model": "gpt-4o",
+    #     "messages": [
+    #         {
+    #             "role": "user",
+    #             "content": [
+    #                 {"type": "text", "text": question},
+    #                 {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}},
+    #             ],
+    #         }
+    #     ],
+    #     "max_tokens": 1000,
+    # }
+    # response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+
+    # Let's try open-source VLM!
     payload = {
-        "model": "gpt-4o",
+        "model": "Qwen/Qwen2.5-VL-72B-Instruct",
         "messages": [
             {
                 "role": "user",
@@ -174,9 +195,11 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
         ],
         "max_tokens": 1000,
     }
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response = requests.post("https://api.together.xyz/v1/chat/completions", headers=headers, json=payload)
     try:
         output = response.json()["choices"][0]["message"]["content"]
+        useage = response.json()["usage"]
+        print(f"*** Used VLM: Prompt tokens: {useage['prompt_tokens']}, Completion tokens: {useage['completion_tokens']}")
     except Exception:
         raise Exception(f"Response format unexpected: {response.json()}")
 
@@ -185,45 +208,9 @@ def visualizer(image_path: str, question: Optional[str] = None) -> str:
 
     return output
 
-@tool
-def visualizer_opensource(image_path: str, question: Optional[str] = None) -> str:
-    """A tool that can answer questions about attached images.
-
-    Args:
-        image_path: The path to the image on which to answer the question. This should be a local path to downloaded image.
-        question: The question to answer.
-    """
-
-    add_note = False
-    if not question:
-        add_note = True
-        question = "Please write a detailed caption for this image."
-    if not isinstance(image_path, str):
-        raise Exception("You should provide at least `image_path` string argument to this tool!")
-
-    mime_type, _ = mimetypes.guess_type(image_path)
-    base64_image = encode_image(image_path)
-
-    payload = {
-        "model": "gpt-4o",
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": question},
-                    {"type": "image_url", "image_url": {"url": f"data:{mime_type};base64,{base64_image}"}},
-                ],
-            }
-        ],
-        "max_tokens": 1000,
-    }
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
-    try:
-        output = response.json()["choices"][0]["message"]["content"]
-    except Exception:
-        raise Exception(f"Response format unexpected: {response.json()}")
-
-    if add_note:
-        output = f"You did not provide a particular question, so here is a detailed caption for the image: {output}"
-
-    return output
+if __name__ == "__main__":
+    
+    image_path="df6561b2-7ee5-4540-baab-5095f742716a.png"
+    question ="list the red numbers"
+    result = visualizer(image_path, question)
+    print(result)
