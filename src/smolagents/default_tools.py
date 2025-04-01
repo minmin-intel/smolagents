@@ -125,7 +125,7 @@ class DuckDuckGoSearchTool(Tool):
 
 class GoogleSearchTool(Tool):
     name = "web_search"
-    description = """Performs a google web search for your query then returns a string of the top search results."""
+    description = """Performs a google web search for your query then returns a list of the top urls and page snippets. You should then visit the urls to get the full content of the pages if the snippets do not contain useful info."""
     inputs = {
         "query": {"type": "string", "description": "The search query to perform."},
         "filter_year": {

@@ -32,6 +32,7 @@ from smolagents import (
     ToolCallingAgent,
 )
 
+from scripts.web_search import CrawlWebTool
 
 AUTHORIZED_IMPORTS = [
     "requests",
@@ -75,6 +76,9 @@ def parse_args():
     parser.add_argument("--datapath", type=str, default="data/gaia")
     parser.add_argument("--test_type", type=str, default="text", help="text or image")
     parser.add_argument("--answer_file", type=str, default="answers.jsonl")
+    parser.add_argument(
+        "--debug", action="store_true", help="If set, will run the agent in debug mode (no concurrency)."
+    )
     return parser.parse_args()
 
 
@@ -124,15 +128,16 @@ def create_agent(args):
     text_limit = 100000
     browser = SimpleTextBrowser(**BROWSER_CONFIG)
     WEB_TOOLS = [
-        GoogleSearchTool(provider="serper"),
-        VisitTool(browser),
-        PageUpTool(browser),
-        PageDownTool(browser),
-        FinderTool(browser),
-        FindNextTool(browser),
-        ArchiveSearchTool(browser),
+        CrawlWebTool(),
+        # GoogleSearchTool(provider="serper"),
+        # VisitTool(browser),
+        # PageUpTool(browser),
+        # PageDownTool(browser),
+        # FinderTool(browser),
+        # FindNextTool(browser),
+        # ArchiveSearchTool(browser),
         TextInspectorTool(model, text_limit),
-        DownloadTool(browser),
+        # DownloadTool(browser),
         visualizer,
     ]
 
@@ -307,7 +312,7 @@ def test_web_agent():
     print(f"Got this answer: {answer}")
 
 def save_as_csv(answers_file):
-    df = pd.read_json(answers_file, lines=True)
+    df = pd.read_json(answers_file, lines=True)[["question", "prediction", "true_answer", "task", "start_time", "end_time"]]
     df.to_csv(answers_file.replace(".jsonl", ".csv"), index=False)
     print(f"Saved answers to {answers_file.replace('.jsonl', '.csv')}")
 
@@ -316,17 +321,19 @@ if __name__ == "__main__":
     print(args)
 
     df = load_gaia_dataset(args)
-
     answers_file = args.answer_file
-    
-    tasks_to_run = get_examples_to_answer(answers_file, df)
+
+    if args.debug:
+        tasks_to_run = df
+    else:
+        tasks_to_run = get_examples_to_answer(answers_file, df)
 
     for i, example in tasks_to_run.iterrows():
-        print(f"Processing task {i}/{len(tasks_to_run)}")
-        print(f"Question: {example['question']}")
-        answer_single_question(args, example, answers_file)
-        if i+1 == 1:
-            break
+        if i == 9:
+            print(f"Processing task {i}/{len(tasks_to_run)}")
+            print(f"Question: {example['question']}")
+            answer_single_question(args, example, answers_file)
+
 
     save_as_csv(answers_file)
     print("All tasks done!")

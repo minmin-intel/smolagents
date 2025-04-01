@@ -4,7 +4,7 @@ from smolagents import Tool
 from smolagents.models import MessageRole, Model
 
 from .mdconvert import MarkdownConverter
-
+import os
 
 class TextInspectorTool(Tool):
     name = "inspect_file_as_text"
@@ -25,6 +25,7 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
     }
     output_type = "string"
     md_converter = MarkdownConverter()
+    docling_converter = None  # Placeholder for docling converter
 
     def __init__(self, model: Model, text_limit: int):
         super().__init__()
@@ -74,7 +75,16 @@ This tool handles the following file extensions: [".html", ".htm", ".xlsx", ".pp
         return self.model(messages).content
 
     def forward(self, file_path, question: Optional[str] = None) -> str:
-        result = self.md_converter.convert(file_path)
+        DATAPATH=os.getenv("DATAPATH", "")
+        file_path = os.path.join(DATAPATH, file_path)
+        if not os.path.exists(file_path):
+            raise Exception(f"File {file_path} does not exist!")
+        
+        if ".zip" in file_path:
+            result = self.md_converter.convert(file_path)
+        else:
+            # use docling to convert the file
+
 
         if file_path[-4:] in [".png", ".jpg"]:
             raise Exception("Cannot use inspect_file_as_text tool with images: use visualizer instead!")
