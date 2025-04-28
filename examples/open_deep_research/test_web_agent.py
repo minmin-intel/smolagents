@@ -84,6 +84,9 @@ def parse_args():
     parser.add_argument(
         "--debug", action="store_true", help="If set, will run the agent in debug mode (no concurrency)."
     )
+    parser.add_argument(
+        "--test_browser_use", action="store_true", help="If set, will run the agent in test mode with browser use."
+    )
     return parser.parse_args()
 
 
@@ -131,20 +134,23 @@ def create_agent(args):
         raise ValueError(f"Unknown provider: {args.provider}")
 
     text_limit = 100000
-    browser = SimpleTextBrowser(**BROWSER_CONFIG)
-    WEB_TOOLS = [
-        CrawlWebTool(),
-        # GoogleSearchTool(provider="serper"),
-        # VisitTool(browser),
-        # PageUpTool(browser),
-        # PageDownTool(browser),
-        # FinderTool(browser),
-        # FindNextTool(browser),
-        # ArchiveSearchTool(browser),
-        TextInspectorTool(model, text_limit),
-        # DownloadTool(browser),
-        visualizer,
-    ]
+    # browser = SimpleTextBrowser(**BROWSER_CONFIG)
+    if args.test_browser_use:
+        WEB_TOOLS = [CrawlWebTool()]
+    else:
+        WEB_TOOLS = [
+            CrawlWebTool(),
+            # GoogleSearchTool(provider="serper"),
+            # VisitTool(browser),
+            # PageUpTool(browser),
+            # PageDownTool(browser),
+            # FinderTool(browser),
+            # FindNextTool(browser),
+            # ArchiveSearchTool(browser),
+            TextInspectorTool(model, text_limit),
+            # DownloadTool(browser),
+            visualizer,
+        ]
 
     if args.agent_type == "code":
         text_webbrowser_agent = CodeAgent(
@@ -176,23 +182,27 @@ def load_gaia_dataset(args):
     DATAPATH=args.datapath
 
     if args.sampled:
-        filename = f"{DATAPATH}/{args.subset}/metadata_filtered_{args.test_type}_sampled.jsonl"
+        if args.test_browser_use:
+            filename = f"{DATAPATH}/{args.subset}/metadata_test_browseruse.csv"
+        else:
+            filename = f"{DATAPATH}/{args.subset}/metadata_filtered_{args.test_type}_sampled.jsonl"
     else:
         filename = f"{DATAPATH}/{args.subset}/metadata.jsonl"
 
-    df = pd.read_json(filename, lines=True)
+    if filename.endswith(".jsonl"):
+        df = pd.read_json(filename, lines=True)
+    elif filename.endswith(".csv"):
+        df = pd.read_csv(filename)
+    else:
+        raise ValueError("File must be in jsonl or csv format")
     print(f"Loaded dataset: {df.shape[0]} questions")
     print(df["Level"].value_counts())
     df.rename(columns={"Question": "question", "Final answer": "true_answer", "Level": "task"}, inplace=True)
-    for _, row in df.iterrows():
-        if len(row["file_name"]) > 0:
-            row["file_name"] = f"{DATAPATH}/{args.subset}/" + row["file_name"]
-            #check if file exists
-            if not os.path.exists(row["file_name"]):
-                print(f"File {row['file_name']} does not exist!")
-            else:
-                print(f"File {row['file_name']} exists!")
-
+    # for _, row in df.iterrows():
+    #     if row["file_name"]:
+    #         row["file_name"] = f"{DATAPATH}/{args.subset}/" + row["file_name"]
+    #         #check if file exists
+    #         assert os.path.exists(row["file_name"]), f"File {row['file_name']} does not exist!"
     return df
 
 def append_answer(entry: dict, jsonl_file: str) -> None:
@@ -330,6 +340,8 @@ if __name__ == "__main__":
     args= parse_args()
     print(args)
 
+    debug_list = [1, 9, 12, 13, 14]
+
     if args.quick_test:
         test_web_agent()
 
@@ -344,8 +356,8 @@ if __name__ == "__main__":
 
         for i, example in tasks_to_run.iterrows():
             if args.debug:
-                if i == args.question:
-                    print(f"Processing task {i}/{len(tasks_to_run)}")
+                if i in debug_list:
+                    print(f"Processing task {i}")
                     print(f"Question: {example['question']}")
                     answer_single_question(args, example, answers_file)
             else:
