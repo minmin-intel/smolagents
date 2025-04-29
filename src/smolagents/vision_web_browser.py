@@ -53,6 +53,12 @@ def parse_arguments():
         help="The inference provider to use for the model",
     )
     parser.add_argument(
+        "--api-base",
+        type=str,
+        default="https://api.together.xyz/v1",
+        help="The base URL for the model",
+    )
+    parser.add_argument(
         "--input",
         type=str,
         default=None,
@@ -63,6 +69,11 @@ def parse_arguments():
         type=str,
         default=None,
         help="Path to the output file for saving results",
+    )
+    parser.add_argument(
+        "--quick-test",
+        action="store_true",
+        help="Run a quick test with a single question",
     )
     return parser.parse_args()
 
@@ -206,12 +217,12 @@ When you have modals or cookie banners on screen, you should get rid of them bef
 """
 
 
-def run_webagent(prompt: str, model_type: str, model_id: str, provider: str) -> None:
+def run_webagent(prompt: str, model_type: str, model_id: str, api_base:str, api_key:str) -> None:
     # Load environment variables
     load_dotenv()
 
     # Initialize the model based on the provided arguments
-    model = load_model(model_type, model_id, provider=provider, api_base=None, api_key=None)
+    model = load_model(model_type, model_id, api_base=api_base, api_key=api_key)
 
     global driver
     driver = initialize_driver()
@@ -260,13 +271,25 @@ def main() -> None:
     df = get_test_data(args)
     # df = df.head(1)
 
+    api_base = args.api_base
+    api_key = os.getenv("TOGETHER_API_KEY")
+
+    if args.quick_test:
+        # Run a quick test with a single question
+        prompt = search_request
+        print(f"Running quick test with prompt: {prompt}")
+        response = run_webagent(prompt, args.model_type, args.model_id, api_base, api_key)
+        print(f"Response: {response}")
+        return None
+
+
     for i, row in df.iterrows():
         # Extract the prompt from the DataFrame
         prompt = row["Question"]
         print(f"Processing question {i}: {prompt}")
         # Run the web agent with the extracted prompt
         start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        response = run_webagent(prompt, args.model_type, args.model_id, args.provider)
+        response = run_webagent(prompt, args.model_type, args.model_id, api_base, api_key)
         print(f"Response: {response}")
         end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         data = {

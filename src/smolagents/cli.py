@@ -94,8 +94,8 @@ def load_model(
 ) -> Model:
     if model_type == "OpenAIServerModel":
         return OpenAIServerModel(
-            api_key=api_key or os.getenv("FIREWORKS_API_KEY"),
-            api_base=api_base or "https://api.fireworks.ai/inference/v1",
+            api_key=api_key or os.getenv("TOGETHER_API_KEY"),
+            api_base=api_base or "https://api.together.xyz/v1",
             model_id=model_id,
         )
     elif model_type == "LiteLLMModel":
