@@ -19,10 +19,11 @@ I'm trying to find how hard I have to work to get a repo in github.com/trending.
 Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
 """  # The agent is able to achieve this request only when powered by GPT-4o or Claude-3.5-sonnet.
 
-search_request = """
-Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
-"""
+# search_request = """
+# Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
+# """
 
+search_request="Who nominated the only Featured Article on English Wikipedia about a dinosaur that was promoted in November 2016?"
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
@@ -50,6 +51,18 @@ def parse_arguments():
         type=str,
         default=None,
         help="The inference provider to use for the model",
+    )
+    parser.add_argument(
+        "--input",
+        type=str,
+        default=None,
+        help="Path to the test data file (CSV or JSONL)",
+    )
+    parser.add_argument(
+        "--output",
+        type=str,
+        default=None,
+        help="Path to the output file for saving results",
     )
     return parser.parse_args()
 
@@ -114,7 +127,7 @@ def initialize_driver():
     chrome_options.add_argument("--window-size=1000,1350")
     chrome_options.add_argument("--disable-pdf-viewer")
     chrome_options.add_argument("--window-position=0,0")
-    return helium.start_chrome(headless=False, options=chrome_options)
+    return helium.start_chrome(headless=True, options=chrome_options)
 
 
 def initialize_agent(model):
@@ -206,13 +219,69 @@ def run_webagent(prompt: str, model_type: str, model_id: str, provider: str) -> 
 
     # Run the agent with the provided prompt
     agent.python_executor("from helium import *")
-    agent.run(prompt + helium_instructions)
+    answer = agent.run(prompt + helium_instructions)
+    return answer
+
+
+import pandas as pd
+import os
+def get_test_data(args):
+    if args.input is not None:
+        if args.input.endswith(".csv"):
+            df = pd.read_csv(args.input)
+        elif args.input.endswith(".jsonl"):
+            df = pd.read_json(args.input, lines=True)
+        else:
+            raise ValueError("Unsupported file format. Please provide a CSV or JSONL file.")
+        
+        if os.path.exists(args.output):
+            tested = pd.read_json(args.output, lines=True)
+            df = df[~df["Question"].isin(tested["question"])]
+        print(f"Loaded {len(df)} questions from {args.input}")
+        return df
+    else:
+        raise ValueError("No input file provided. Please specify a CSV or JSONL file.")
+
+def append_to_output_file(output_file, data):
+    import json
+    with open(output_file, "a") as f:
+        f.write(json.dumps(data) + "\n")
+
+def save_as_csv(answers_file):
+    df = pd.read_json(answers_file, lines=True)
+    df.to_csv(answers_file.replace(".jsonl", ".csv"), index=False)
+    print(f"Saved answers to {answers_file.replace('.jsonl', '.csv')}")
 
 
 def main() -> None:
+    from datetime import datetime
     # Parse command line arguments
     args = parse_arguments()
-    run_webagent(args.prompt, args.model_type, args.model_id, args.provider)
+    df = get_test_data(args)
+    # df = df.head(1)
+
+    for i, row in df.iterrows():
+        # Extract the prompt from the DataFrame
+        prompt = row["Question"]
+        print(f"Processing question {i}: {prompt}")
+        # Run the web agent with the extracted prompt
+        start_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        response = run_webagent(prompt, args.model_type, args.model_id, args.provider)
+        print(f"Response: {response}")
+        end_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        data = {
+            "question": prompt,
+            "prediction": response,
+            "true_answer": row["Final answer"],
+            "task": row["Level"],
+            "start_time": start_time,
+            "end_time": end_time,
+        }
+        # Append the result to the output file
+        append_to_output_file(args.output, data)
+        print("="*50)
+
+    save_as_csv(args.output)
 
 
 if __name__ == "__main__":

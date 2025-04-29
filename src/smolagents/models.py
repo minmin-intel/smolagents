@@ -1032,6 +1032,18 @@ class LiteLLMModel(ApiModel):
 
         self.last_input_token_count = response.usage.prompt_tokens
         self.last_output_token_count = response.usage.completion_tokens
+        print(f"***Prompt tokens: {self.last_input_token_count}")
+        print(f"***Completion tokens: {self.last_output_token_count}")
+
+        # get additional details of usage
+        if response.usage.completion_tokens_details:
+            if hasattr(response.usage.completion_tokens_details, "reasoning_tokens"):
+                reasoning_tokens = response.usage.completion_tokens_details.reasoning_tokens
+                print(f"***Reasoning tokens: {reasoning_tokens}")
+        if response.usage.prompt_tokens_details:
+            if hasattr(response.usage.prompt_tokens_details, "cached_tokens"):
+                reasoning_tokens = response.usage.prompt_tokens_details.cached_tokens
+                print(f"***Cached tokens: {reasoning_tokens}")
         return ChatMessage.from_dict(
             response.choices[0].message.model_dump(include={"role", "content", "tool_calls"}),
             raw=response,
