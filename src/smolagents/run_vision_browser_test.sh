@@ -11,12 +11,13 @@ filename=metadata_test_browseruse.csv
 
 input="$datapath/$filename"
 output=$WORKDIR/datasets/gaia/smolagents_tests/results_${MODELNAME}_visionbrowser.jsonl
-logfile=$WORKDIR/datasets/gaia/smolagents_tests/log_${MODELNAME}_visionbrowser_run2.log
+logfile=$WORKDIR/datasets/webarena/test_smolagents/logs/log_${MODELNAME}_visionbrowser.log
 
 python vision_web_browser.py \
     --model-id $MODEL \
     --model-type $MODELTYPE \
     --input $input \
-    --output $output | tee $logfile
+    --output $output \
+    --quick-test | tee $logfile
    
-    # --quick-test 
+    #  

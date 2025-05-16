@@ -102,7 +102,7 @@ def load_model(
         return LiteLLMModel(
             model_id=model_id,
             api_key=api_key,
-            api_base=api_base,
+            api_base=api_base or "https://api.openai.com/v1",
         )
     elif model_type == "TransformersModel":
         return TransformersModel(model_id=model_id, device_map="auto")
@@ -141,16 +141,17 @@ def run_smolagent(
                 raise ValueError(f"Tool {tool_name} is not recognized either as a default tool or a Space.")
 
     print(f"Running agent with these tools: {tools}")
-    agent = CodeAgent(tools=available_tools, model=model, additional_authorized_imports=imports)
+    # agent = CodeAgent(tools=available_tools, model=model, additional_authorized_imports=imports)
 
-    agent.run(prompt)
+    # agent.run(prompt)
 
 
 def main() -> None:
     args = parse_arguments()
     run_smolagent(
         args.prompt,
-        args.tools,
+        # args.tools,
+        [], # no additional tools for now
         args.model_type,
         args.model_id,
         provider=args.provider,

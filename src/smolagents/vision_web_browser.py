@@ -12,28 +12,21 @@ from selenium.webdriver.common.keys import Keys
 from smolagents import CodeAgent, WebSearchTool, tool
 from smolagents.agents import ActionStep
 from smolagents.cli import load_model
+import os
+import time
 
 
-github_request = """
-I'm trying to find how hard I have to work to get a repo in github.com/trending.
-Can you navigate to the profile for the top author of the top trending repo, and give me their total number of commits over the last year?
-"""  # The agent is able to achieve this request only when powered by GPT-4o or Claude-3.5-sonnet.
 
-# search_request = """
-# Please navigate to https://en.wikipedia.org/wiki/Chicago and give me a sentence containing the word "1992" that mentions a construction accident.
-# """
-
-search_request="Who nominated the only Featured Article on English Wikipedia about a dinosaur that was promoted in November 2016?"
 
 def parse_arguments():
     parser = argparse.ArgumentParser(description="Run a web browser automation script with a specified model.")
-    parser.add_argument(
-        "prompt",
-        type=str,
-        nargs="?",  # Makes it optional
-        default=search_request,
-        help="The prompt to run with the agent",
-    )
+    # parser.add_argument(
+    #     "prompt",
+    #     type=str,
+    #     nargs="?",  # Makes it optional
+    #     default=search_request,
+    #     help="The prompt to run with the agent",
+    # )
     parser.add_argument(
         "--model-type",
         type=str,
@@ -54,7 +47,7 @@ def parse_arguments():
     parser.add_argument(
         "--api-base",
         type=str,
-        default="https://api.together.xyz/v1",
+        # default="https://api.together.xyz/v1",
         help="The base URL for the model",
     )
     parser.add_argument(
@@ -76,6 +69,51 @@ def parse_arguments():
     )
     return parser.parse_args()
 
+WORKDIR=os.getenv('WORKDIR')
+DATAPATH=os.path.join(WORKDIR, 'datasets/webarena/test_smolagents')
+if not os.path.exists(DATAPATH):
+    os.makedirs(DATAPATH)
+
+def capture_screenshot():
+    """
+    Save a screenshot of the current page.
+    """
+    print("Saving screenshot...")
+    driver = helium.get_driver()
+    # Get the current page title
+    # Create a filename based on the title
+    filename = f"{time.time()}.png"
+    # Save the screenshot
+    png_bytes = driver.get_screenshot_as_png()
+    image = PIL.Image.open(BytesIO(png_bytes))
+    image.save(os.path.join(DATAPATH, filename))
+    print(f"Screenshot saved as {filename}")
+    return image
+
+
+def reset():
+    print("Starting Chrome and go to login page...")
+    url = "http://10.7.4.57:9083/admin"
+
+    chrome_options = webdriver.ChromeOptions()
+    chrome_options.add_argument("--force-device-scale-factor=1")
+    chrome_options.add_argument("--window-size=1000,1350")
+    chrome_options.add_argument("--disable-pdf-viewer")
+    chrome_options.add_argument("--window-position=0,0")
+
+    driver = helium.start_chrome(url, headless=True, options=chrome_options)
+
+    username = os.getenv('SHOPPING_ADMIN_USERNAME')
+    password = os.getenv('SHOPPING_ADMIN_PASSWORD')
+    print("Entering login info...")
+    helium.write(username, into='Username')
+    helium.write(password, into='Password')
+
+    print("Clicking sign in...")
+    helium.click('Sign in')
+    time.sleep(3)
+    image = capture_screenshot()
+    return driver, image
 
 def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
     sleep(1.0)  # Let JavaScript animations happen before taking the screenshot
@@ -89,6 +127,7 @@ def save_screenshot(memory_step: ActionStep, agent: CodeAgent) -> None:
         image = PIL.Image.open(BytesIO(png_bytes))
         print(f"Captured a browser screenshot: {image.size} pixels")
         memory_step.observations_images = [image.copy()]  # Create a copy to ensure it persists, important!
+        image.save(os.path.join(DATAPATH, f"step_{current_step}.png"))
 
     # Update observations with current URL
     url_info = f"Current url: {driver.current_url}"
@@ -129,21 +168,22 @@ def close_popups() -> str:
     """
     webdriver.ActionChains(driver).send_keys(Keys.ESCAPE).perform()
 
-
+# from test_helium import reset
 def initialize_driver():
     """Initialize the Selenium WebDriver."""
-    chrome_options = webdriver.ChromeOptions()
-    chrome_options.add_argument("--force-device-scale-factor=1")
-    chrome_options.add_argument("--window-size=1000,1350")
-    chrome_options.add_argument("--disable-pdf-viewer")
-    chrome_options.add_argument("--window-position=0,0")
-    return helium.start_chrome(headless=True, options=chrome_options)
-
+    # chrome_options = webdriver.ChromeOptions()
+    # chrome_options.add_argument("--force-device-scale-factor=1")
+    # chrome_options.add_argument("--window-size=1000,1350")
+    # chrome_options.add_argument("--disable-pdf-viewer")
+    # chrome_options.add_argument("--window-position=0,0")
+    # return helium.start_chrome(headless=True, options=chrome_options)
+    driver, login_screenshot = reset()
+    return driver, login_screenshot
 
 def initialize_agent(model):
     """Initialize the CodeAgent with the specified model."""
     return CodeAgent(
-        tools=[WebSearchTool(), go_back, close_popups, search_item_ctrl_f],
+        tools=[go_back, close_popups, search_item_ctrl_f],
         model=model,
         additional_authorized_imports=["helium"],
         step_callbacks=[save_screenshot],
@@ -152,9 +192,9 @@ def initialize_agent(model):
     )
 
 
-helium_instructions = """
-Use your web_search tool when you want to get Google search results.
-Then you can use helium to access websites. Don't use helium for Google search, only for navigating websites!
+helium_instructions = """You are a web browser agent that helps users achieve their goals.
+You are given the screenshot of the homepage of the website that you are browsing. Only navigate within this website.
+Use helium to navigate the website.
 Don't bother about the helium driver, it's already managed.
 We've already ran "from helium import *"
 Then you can go to pages!
@@ -216,6 +256,7 @@ When you have modals or cookie banners on screen, you should get rid of them bef
 """
 
 
+
 def run_webagent(prompt: str, model_type: str, model_id: str, api_base:str, api_key:str) -> None:
     # Load environment variables
     load_dotenv()
@@ -224,12 +265,12 @@ def run_webagent(prompt: str, model_type: str, model_id: str, api_base:str, api_
     model = load_model(model_type, model_id, api_base=api_base, api_key=api_key)
 
     global driver
-    driver = initialize_driver()
+    driver, first_screenshot = initialize_driver()
     agent = initialize_agent(model)
 
     # Run the agent with the provided prompt
     agent.python_executor("from helium import *")
-    answer = agent.run(prompt + helium_instructions)
+    answer = agent.run(task=prompt + helium_instructions, images=[first_screenshot])
     return answer
 
 
@@ -271,11 +312,14 @@ def main() -> None:
     # df = df.head(1)
 
     api_base = args.api_base
-    api_key = os.getenv("TOGETHER_API_KEY")
+    if args.model_type == "OpenAIServerModel":
+        api_key = os.getenv("TOGETHER_API_KEY")
+    elif args.model_type == "LiteLLMModel":
+        api_key = os.getenv("OPENAI_API_KEY")
 
     if args.quick_test:
         # Run a quick test with a single question
-        prompt = search_request
+        prompt = "What are the top-3 best-selling product in **Jan 2023**? Today is May 2025."
         print(f"Running quick test with prompt: {prompt}")
         response = run_webagent(prompt, args.model_type, args.model_id, api_base, api_key)
         print(f"Response: {response}")

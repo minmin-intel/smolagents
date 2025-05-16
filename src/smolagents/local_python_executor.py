@@ -1439,6 +1439,7 @@ def evaluate_python_code(
     """
     try:
         expression = ast.parse(code)
+        print(f"**Parsed code: {ast.dump(expression)}")
     except SyntaxError as e:
         raise InterpreterError(
             f"Code parsing failed on line {e.lineno} due to: {type(e).__name__}\n"
@@ -1526,6 +1527,7 @@ class LocalPythonExecutor(PythonExecutor):
         self.additional_functions = additional_functions or {}
 
     def __call__(self, code_action: str) -> tuple[Any, str, bool]:
+        print(f"**Executing code: {code_action}")
         output, is_final_answer = evaluate_python_code(
             code_action,
             static_tools=self.static_tools,
