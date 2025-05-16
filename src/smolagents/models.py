@@ -1111,7 +1111,7 @@ class LiteLLMRouterModel(LiteLLMModel):
     Example:
     ```python
     >>> import os
-    >>> from smolagents import CodeAgent, DuckDuckGoSearchTool, LiteLLMRouterModel
+    >>> from smolagents import CodeAgent, WebSearchTool, LiteLLMRouterModel
     >>> os.environ["OPENAI_API_KEY"] = ""
     >>> os.environ["AWS_ACCESS_KEY_ID"] = ""
     >>> os.environ["AWS_SECRET_ACCESS_KEY"] = ""
@@ -1141,7 +1141,7 @@ class LiteLLMRouterModel(LiteLLMModel):
     ...        "routing_strategy":"simple-shuffle"
     ...    }
     >>> )
-    >>> agent = CodeAgent(tools=[DuckDuckGoSearchTool()], model=model)
+    >>> agent = CodeAgent(tools=[WebSearchTool()], model=model)
     >>> agent.run("How many seconds would it take for a leopard at full speed to run through Pont des Arts?")
     ```
     """
@@ -1179,7 +1179,7 @@ class LiteLLMRouterModel(LiteLLMModel):
 class InferenceClientModel(ApiModel):
     """A class to interact with Hugging Face's Inference Providers for language model interaction.
 
-    This model allows you to communicate with Hugging Face's models using Inference Providers. It can be used in both serverless mode or with a dedicated endpoint, supporting features like stop sequences and grammar customization.
+    This model allows you to communicate with Hugging Face's models using Inference Providers. It can be used in both serverless mode, with a dedicated endpoint, or even with a local URL, supporting features like stop sequences and grammar customization.
 
     Providers include Cerebras, Cohere, Fal, Fireworks, HF-Inference, Hyperbolic, Nebius, Novita, Replicate, SambaNova, Together, and more.
 
@@ -1189,8 +1189,9 @@ class InferenceClientModel(ApiModel):
             This can be a model identifier from the Hugging Face model hub or a URL to a deployed Inference Endpoint.
             Currently, it defaults to `"Qwen/Qwen2.5-Coder-32B-Instruct"`, but this may change in the future.
         provider (`str`, *optional*):
-            Name of the provider to use for inference. Can be `"black-forest-labs"`, `"cerebras"`, `"cohere"`, `"fal-ai"`, `"fireworks-ai"`, `"hf-inference"`, `"hyperbolic"`, `"nebius"`, `"novita"`, `"openai"`, `"replicate"`, "sambanova"`, `"together"`, etc.
-            Currently, it defaults to hf-inference (HF Inference API).
+            Name of the provider to use for inference. A list of supported providers can be found in the [Inference Providers documentation](https://huggingface.co/docs/inference-providers/index#partners).
+            Defaults to "auto" i.e. the first of the providers available for the model, sorted by the user's order [here](https://hf.co/settings/inference-providers).
+            If `base_url` is passed, then `provider` is not used.
         token (`str`, *optional*):
             Token used by the Hugging Face API for authentication. This token need to be authorized 'Make calls to the serverless Inference Providers'.
             If the model is gated (like Llama-3 models), the token also needs 'Read access to contents of all public gated repos you can access'.
@@ -1208,8 +1209,11 @@ class InferenceClientModel(ApiModel):
         bill_to (`str`, *optional*):
             The billing account to use for the requests. By default the requests are billed on the user’s account. Requests can only be billed to
             an organization the user is a member of, and which has subscribed to Enterprise Hub.
+        base_url (`str`, `optional`):
+            Base URL to run inference. This is a duplicated argument from `model` to make [`InferenceClientModel`]
+            follow the same pattern as `openai.OpenAI` client. Cannot be used if `model` is set. Defaults to None.
         **kwargs:
-            Additional keyword arguments to pass to the Hugging Face API.
+            Additional keyword arguments to pass to the Hugging Face InferenceClient.
 
     Raises:
         ValueError:
@@ -1240,6 +1244,7 @@ class InferenceClientModel(ApiModel):
         custom_role_conversions: dict[str, str] | None = None,
         api_key: str | None = None,
         bill_to: str | None = None,
+        base_url: str | None = None,
         **kwargs,
     ):
         if token is not None and api_key is not None:
@@ -1258,6 +1263,7 @@ class InferenceClientModel(ApiModel):
             "token": token,
             "timeout": timeout,
             "bill_to": bill_to,
+            "base_url": base_url,
         }
         super().__init__(model_id=model_id, custom_role_conversions=custom_role_conversions, **kwargs)
 
@@ -1329,8 +1335,8 @@ class InferenceClientModel(ApiModel):
 class HfApiModel(InferenceClientModel):
     def __new__(cls, *args, **kwargs):
         warnings.warn(
-            "HfApiModel has been renamed to InferenceClientModel to more closely follow the name of the underlying Inference library.",
-            DeprecationWarning,
+            "HfApiModel was renamed to InferenceClientModel in version 1.14.0 and will be removed in 1.17.0.",
+            FutureWarning,
         )
         return super().__new__(cls)
 
